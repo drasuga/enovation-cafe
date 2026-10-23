@@ -77,16 +77,21 @@ export default function MenuClient({ categories, items, initialTable }) {
 
   return (
     <>
-      {categories.map((cat) => (
+            {categories.map((cat) => (
         <section key={cat.id}>
           <h2 className="category-title">{cat.name}</h2>
           {items
             .filter((item) => item.category_id === cat.id)
             .map((item) => (
               <div className="item" key={item.id}>
-                <div>
-                  <h3>{item.name}</h3>
-                  <p>{item.description}</p>
+                <div className="item-main">
+                  {item.image_url && (
+                    <img className="thumb" src={item.image_url} alt={item.name} />
+                  )}
+                  <div>
+                    <h3>{item.name}</h3>
+                    <p>{item.description}</p>
+                  </div>
                 </div>
                 <div className="item-side">
                   <div className="price">{fmt(item.price)}</div>

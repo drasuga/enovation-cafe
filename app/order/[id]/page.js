@@ -1,38 +1,20 @@
-import { supabaseAdmin } from '@/lib/supabaseAdmin';
-import { syncPayment } from '@/lib/syncPayment';
-import OrderActions from '@/components/OrderActions';
+import { supabase } from '@/lib/supabase';
+import MenuClient from '@/components/MenuClient';
 
 export const dynamic = 'force-dynamic';
 
-const fmt = (n) => n.toLocaleString('fr-FR') + ' FCFA';
+export default async function Home({ searchParams }) {
+  const { table } = await searchParams;
 
-const STATUS = {
-  pending_payment: 'En attente de paiement',
-  paid: 'Payée',
-  preparing: 'En préparation',
-  ready: 'Prête',
-  delivered: 'Servie',
-  cancelled: 'Annulée',
-};
+  const { data: categories } = await supabase
+    .from('categories')
+    .select('id, name, sort_order')
+    .order('sort_order');
 
-async function loadOrder(id) {
-  const { data } = await supabaseAdmin
-    .from('orders')
-    .select('id, table_number, total, status, payment_ref, order_items(name, price, quantity)')
-    .eq('id', id)
-    .single();
-  return data;
-}
-
-export default async function OrderPage({ params }) {
-  const { id } = await params;
-
-  let order = await loadOrder(id);
-
-  if (order && order.status === 'pending_payment') {
-    const newStatus = await syncPayment(order);
-    if (newStatus !== order.status) order = await loadOrder(id);
-  }
+  const { data: items } = await supabase
+    .from('menu_items')
+    .select('id, category_id, name, description, price, image_url')
+    .order('name');
 
   return (
     <>
@@ -42,37 +24,11 @@ export default async function OrderPage({ params }) {
       </header>
 
       <main className="container">
-        {!order ? (
-          <p>Commande introuvable.</p>
-        ) : (
-          <>
-            <h2 className="category-title">
-              {order.status === 'pending_payment' ? 'Finalisez votre paiement' : 'Votre commande'}
-            </h2>
-            <p>
-              Table <strong>{order.table_number}</strong>
-            </p>
-            <p style={{ margin: '10px 0' }}>
-              <span className="status-badge">{STATUS[order.status] || order.status}</span>
-            </p>
-
-            {order.order_items.map((l, i) => (
-              <div className="line" key={i}>
-                <span>
-                  {l.quantity} × {l.name}
-                </span>
-                <span>{fmt(l.price * l.quantity)}</span>
-              </div>
-            ))}
-
-            <div className="total-row">
-              <span>Total</span>
-              <span>{fmt(order.total)}</span>
-            </div>
-
-            <OrderActions orderId={order.id} status={order.status} />
-          </>
-        )}
+        <MenuClient
+          categories={categories ?? []}
+          items={items ?? []}
+          initialTable={typeof table === 'string' ? table : ''}
+        />
       </main>
     </>
   );
