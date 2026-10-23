@@ -57,7 +57,18 @@ export default function MenuClient({ categories, items, initialTable }) {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Une erreur est survenue.');
-      router.push(`/order/${data.orderId}`);
+
+      const payRes = await fetch('/api/pay', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId: data.orderId }),
+      });
+      const payData = await payRes.json();
+      if (!payRes.ok) {
+        router.push(`/order/${data.orderId}`);
+        return;
+      }
+      window.location.href = payData.link;
     } catch (err) {
       setError(err.message);
       setSubmitting(false);

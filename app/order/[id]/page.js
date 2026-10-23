@@ -1,4 +1,6 @@
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { syncPayment } from '@/lib/syncPayment';
+import OrderActions from '@/components/OrderActions';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,14 +15,24 @@ const STATUS = {
   cancelled: 'Annulée',
 };
 
+async function loadOrder(id) {
+  const { data } = await supabaseAdmin
+    .from('orders')
+    .select('id, table_number, total, status, payment_ref, order_items(name, price, quantity)')
+    .eq('id', id)
+    .single();
+  return data;
+}
+
 export default async function OrderPage({ params }) {
   const { id } = await params;
 
-  const { data: order } = await supabaseAdmin
-    .from('orders')
-    .select('id, table_number, total, status, order_items(name, price, quantity)')
-    .eq('id', id)
-    .single();
+  let order = await loadOrder(id);
+
+  if (order && order.status === 'pending_payment') {
+    const newStatus = await syncPayment(order);
+    if (newStatus !== order.status) order = await loadOrder(id);
+  }
 
   return (
     <>
@@ -34,7 +46,9 @@ export default async function OrderPage({ params }) {
           <p>Commande introuvable.</p>
         ) : (
           <>
-            <h2 className="category-title">Commande reçue</h2>
+            <h2 className="category-title">
+              {order.status === 'pending_payment' ? 'Finalisez votre paiement' : 'Votre commande'}
+            </h2>
             <p>
               Table <strong>{order.table_number}</strong>
             </p>
@@ -55,6 +69,8 @@ export default async function OrderPage({ params }) {
               <span>Total</span>
               <span>{fmt(order.total)}</span>
             </div>
+
+            <OrderActions orderId={order.id} status={order.status} />
           </>
         )}
       </main>
